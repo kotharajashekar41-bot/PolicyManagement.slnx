@@ -67,6 +67,42 @@ own default unless you pass the `contentType` parameter explicitly — the RFC78
 `application/problem+json` header I'd set beforehand was getting overwritten. Only surfaced
 because a test asserted on the header instead of just the status code.
 
+## Tier 2 — Angular frontend
+
+- **Angular CLI version pin**: the current Angular CLI (would be v20+) requires Node ^22/^24/^26;
+  this environment has Node 20.20.2 with no version manager available. Pinned to
+  `@angular/cli@19` (supports Node 20.11+) rather than upgrading Node system-wide — a take-home
+  shouldn't be changing the machine's global Node install. Angular 19.2 throughout.
+- **State management, decided without being asked**: split `PolicyQueryStore` (client/URL state —
+  filters, sort, page, row selection) from `PolicyDataService` (server state — fetched data,
+  loading, error), each route-provided (not root). No NgRx — for one feature route with this
+  shape of state, a signals-based store is less ceremony, and the brief asks for "an approach
+  appropriate to the scope," not a specific library.
+- **URL sync is one-directional** (signals → URL via `Router.navigate`), deliberately not wired
+  back the other way after initial load, to avoid a navigate-triggers-read-triggers-navigate
+  loop. Browser back/forward still works because a fresh navigation to the route re-constructs
+  the store, which reads `ActivatedRoute.snapshot` fresh.
+- **A real Angular forms gotcha, caught by tests**: `<option [value]="s">` (property binding)
+  puts `SelectControlValueAccessor` into an id-remapping mode meant for non-string values. Mixed
+  with a plain `<option value="">All statuses</option>` in the same `<select>`, the emitted value
+  never matched what the test (or a real browser) expected. This isn't a test artifact — it's the
+  same mechanism a real user's browser uses. Fixed by switching to interpolated `value="{{ s }}"`
+  (a plain string attribute) since every option value here is genuinely just a string.
+- **Two component tests simplified after an NgModel/zone.js fight**: driving `[ngModel]` +
+  `(ngModelChange)` via `dispatchEvent()` in headless Karma didn't reliably fire the output even
+  after accounting for NgModel's internal microtask (`tick()`, `fakeAsync`). Rather than keep
+  fighting Angular forms' internal event plumbing — framework-tested elsewhere, not this app's
+  logic — switched those two tests to call the component's own handler methods directly
+  (`onSearchInput`, `onStatusChange`). That's what's actually specific to this component (debounce
+  timing, empty-string-to-null mapping); the DOM/ngModel wiring is standard Angular.
+- **No interactive browser verification**: the user declined the Chrome extension offered this
+  session, and no other browser automation was available. What *was* verified: a clean production
+  `ng build`, all 48 Karma/Jasmine tests green in headless Chrome, and a `curl`-based CORS
+  preflight confirming `http://localhost:4200` is allowed by the API. What was **not** verified:
+  that the UI actually renders correctly, that interactions feel right, or anything about visual
+  correctness. A green build and green tests are necessary but not sufficient for "the feature
+  works" — recommend opening `http://localhost:4200` manually against a running backend next.
+
 ## Deliberate scope decisions
 
 - **No mocking framework** (Moq/NSubstitute) in unit tests — hand-rolled a `FakePolicyRepository`
@@ -95,3 +131,12 @@ because a test asserted on the header instead of just the status code.
   SQL Server, `curl` process-spawn overhead isn't the same as sustained concurrent sessions, and
   220 rows is the seeded minimum, not a stress dataset. A proper k6 run against SQL Server with a
   larger dataset is the next step before trusting this number in production.
+- **Frontend bonus areas not built**: micro-frontends, visual regression testing, a dedicated E2E
+  suite (Playwright/Cypress — the 48 tests here are unit/component level via Karma), virtual
+  scrolling, i18n. None attempted; listed here rather than silently skipped.
+- **Accessibility was implemented to the WCAG 2.1 AA patterns I know** (semantic table markup,
+  `aria-sort`, labeled form controls, visible focus rings, `aria-live` region for loading/count
+  changes, skip link, `prefers-reduced-motion` respected, hand-checked color-token contrast) but
+  **not run through an automated checker** (axe-core, Lighthouse) or a screen reader. That's a
+  real gap between "followed the patterns" and "verified compliant" — worth an axe-core pass
+  before calling this AA-certified.

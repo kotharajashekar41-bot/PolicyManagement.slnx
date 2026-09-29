@@ -1,0 +1,40 @@
+<section class="summary" aria-labelledby="summary-heading" [attr.aria-busy]="loading()">
+  <h2 id="summary-heading" class="visually-hidden">Summary statistics</h2>
+
+  <div class="summary__group">
+    <h3 class="summary__group-title">By status</h3>
+    <div class="summary__tiles">
+      @for (tile of statusTiles(); track tile.label) {
+        <div class="stat-tile">
+          <span class="stat-tile__value">{{ tile.value }}</span>
+          <span class="stat-tile__label">{{ tile.label }}</span>
+        </div>
+      }
+      @if (!loading() && statusTiles().length === 0) {
+        <p class="summary__empty">No data</p>
+      }
+    </div>
+  </div>
+
+  <div class="summary__group">
+    <h3 class="summary__group-title">Premium by line of business</h3>
+    <div class="summary__tiles">
+      @for (tile of premiumTiles(); track tile.label) {
+        <div class="stat-tile">
+          <span class="stat-tile__value">{{ tile.value }}</span>
+          <span class="stat-tile__label">{{ tile.label }}</span>
+        </div>
+      }
+      @if (!loading() && premiumTiles().length === 0) {
+        <p class="summary__empty">No data</p>
+      }
+    </div>
+  </div>
+
+  <div class="summary__group summary__group--highlight">
+    <div class="stat-tile stat-tile--large" [class.stat-tile--warning]="expiringSoonCount() > 0">
+      <span class="stat-tile__value">{{ expiringSoonCount() }}</span>
+      <span class="stat-tile__label">Expiring within 30 days</span>
+    </div>
+  </div>
+</section>

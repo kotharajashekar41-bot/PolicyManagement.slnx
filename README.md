@@ -12,8 +12,8 @@ regions. Built for the Chubb APAC full-stack take-home assessment.
 - **API docs**: built-in `Microsoft.AspNetCore.OpenApi` generation + [Scalar](https://scalar.com)
   interactive UI. The hand-written source-of-truth contract lives at
   [`openapi/policy-api.yaml`](openapi/policy-api.yaml).
-- **Frontend** (Tier 2): Angular — see [`frontend/`](frontend) if present; Tier 1 backend was
-  prioritized per the assessment's own guidance.
+- **Frontend** (Tier 2): Angular 19, standalone components, signals-based state, no
+  component-level framework (no Material/PrimeNG) — see [`frontend/`](frontend).
 
 ## Running locally
 
@@ -33,22 +33,38 @@ it applies EF Core migrations and seeds 220+ realistic policy records via
 - Interactive docs: `http://localhost:5255/scalar/v1`
 - Health check: `http://localhost:5255/health`
 
-### Option B — `docker-compose up` (SQL Server, production-shaped)
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm start   # ng serve, http://localhost:4200
+```
+
+Talks to the backend at `http://localhost:5255` (see `src/environments/environment.ts`) — run
+Option A above first. CORS is already configured on the API for `http://localhost:4200`.
+
+### Option B — `docker-compose up` (SQL Server, production-shaped, full stack)
 
 ```bash
 docker-compose up --build
 ```
 
-Brings up SQL Server 2022 + the API together. The API waits for SQL Server's health check,
-applies migrations, and seeds data on startup — same as Option A, just against the production
-database engine. API is exposed on `http://localhost:5255`.
+Brings up SQL Server 2022, the API, and the Angular app (built and served via nginx, which also
+reverse-proxies `/api/*` to the API container so there's no CORS concern in this configuration)
+together. The API waits for SQL Server's health check, applies migrations, and seeds data on
+startup. Frontend on `http://localhost:4200`, API directly reachable on `http://localhost:5255`.
 
 > **Note**: this compose file was written and reviewed by hand but not executed end-to-end in
 > this environment (no Docker available here) — see `AI-JOURNAL.md`. If something doesn't come
-> up cleanly, the most likely culprit is the SQL Server health-check command (`sqlcmd` path
-> varies across mssql-server image tags).
+> up cleanly, the most likely culprits are the SQL Server health-check command (`sqlcmd` path
+> varies across mssql-server image tags) or the frontend's `dist/frontend/browser` output path
+> (confirmed locally against Angular 19's esbuild-based builder — would double-check first if a
+> future Angular version changes it).
 
 ## Running tests
+
+**Backend:**
 
 ```bash
 dotnet test PolicyPlatform.slnx
@@ -57,6 +73,19 @@ dotnet test PolicyPlatform.slnx
 19 unit tests (query parameter parsing, entity↔DTO mapping, `PolicyService` behavior against a
 fake repository) + 11 integration tests (`WebApplicationFactory` against a real, isolated SQLite
 database per test run, seeded with a small deterministic dataset — not the random Bogus data).
+
+**Frontend:**
+
+```bash
+cd frontend
+npm test -- --no-watch --browsers=ChromeHeadless
+```
+
+48 tests across services (`ThemeService` persistence/attribute application, `LocalStorageService`
+failure handling, `PolicyApiService` request shaping via `HttpTestingController`), the query
+store (`PolicyQueryStore` — sort toggling, filter-resets-page, URL sync via a `Router.navigate`
+spy, selection), and components (`PolicyTable`, `PolicyFilters`, pagination, status badge, app
+shell).
 
 ## API contract
 
@@ -79,6 +108,8 @@ Full schema/response shapes: [`openapi/policy-api.yaml`](openapi/policy-api.yaml
 
 ## Architecture
 
+### Backend
+
 ```
 src/
   PolicyPlatform.Domain/          entities + enums, zero dependencies
@@ -93,6 +124,34 @@ tests/
 Dependencies point inward: `Api → Application → Domain`, `Infrastructure → Application, Domain`.
 Nothing in `Domain` or `Application` references EF Core, ASP.NET Core, or any infrastructure
 concern directly — those are abstracted behind `IPolicyRepository`.
+
+### Frontend
+
+```
+frontend/src/app/
+  core/
+    models/            Policy/PolicyQuery/PolicySummary types shared across the feature
+    services/           PolicyApiService (HTTP only), ThemeService, LocalStorageService
+  features/policies/
+    state/               PolicyQueryStore (client/URL state) + PolicyDataService (server state)
+    components/          policy-table, policy-filters, policy-summary-panel,
+                         bulk-actions-bar, pagination-controls — all presentational
+    policy-dashboard/     route container — wires state to presentational components
+  shared/components/     status-badge, empty-state, error-state, loading-skeleton, theme-toggle
+```
+
+**State management**: `PolicyQueryStore` (route-provided, not root — its state shouldn't
+outlive the route) holds filters/sort/page/selection as signals and one-way syncs them to the
+URL via `Router.navigate`, so any filtered/sorted/paged view is shareable and survives a
+refresh. `PolicyDataService` holds server state (fetched list, summary, loading, error) and
+reacts to the store's signals via `toObservable` + `switchMap`, so a rapid string of filter
+edits only ever resolves the latest in-flight request. Every other component down the tree is
+purely presentational — inputs/outputs only, no injected services — which is what makes the
+component tests below not need a Router or HttpClient in the harness.
+
+**Theming**: CSS custom properties on `:root`, redefined under both
+`@media (prefers-color-scheme: dark)` (for `'system'`) and `[data-theme="dark"]` (for an
+explicit choice) — `ThemeService` only ever needs to set or clear one attribute.
 
 ### Notable decisions
 
@@ -113,6 +172,10 @@ concern directly — those are abstracted behind `IPolicyRepository`.
 
 - Kafka producer/consumer for flag events (bonus) — documented as a deliberate cut in
   `AI-JOURNAL.md` rather than attempted under time pressure.
-- Frontend bonus areas (micro-frontends, visual regression testing, virtual scrolling, i18n).
+- Frontend bonus areas: micro-frontends, visual regression testing, dedicated E2E suite (Playwright/
+  Cypress — the 48 tests here are unit/component level via Karma), virtual scrolling, i18n.
 - Full-text search is a `LIKE`-based OR across three columns — fine at this data volume, would
   reach for SQL Server full-text search or a dedicated search index at real scale.
+- No interactive/visual browser verification of the frontend in this environment — the person
+  running this should open `http://localhost:4200` and confirm the UI looks right; see
+  `AI-JOURNAL.md` for exactly what was and wasn't verified.

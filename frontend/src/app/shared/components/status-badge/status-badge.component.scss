@@ -1,0 +1,30 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+
+  &[data-status='Active'] {
+    background: var(--color-status-active-bg);
+    color: var(--color-status-active-text);
+  }
+
+  &[data-status='Expired'] {
+    background: var(--color-status-expired-bg);
+    color: var(--color-status-expired-text);
+  }
+
+  &[data-status='Pending'] {
+    background: var(--color-status-pending-bg);
+    color: var(--color-status-pending-text);
+  }
+
+  &[data-status='Cancelled'] {
+    background: var(--color-status-cancelled-bg);
+    color: var(--color-status-cancelled-text);
+  }
+}

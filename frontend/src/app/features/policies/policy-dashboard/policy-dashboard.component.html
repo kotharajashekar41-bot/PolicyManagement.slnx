@@ -1,0 +1,64 @@
+<div class="dashboard">
+  <app-policy-summary-panel [summary]="data.summary()" [loading]="data.isSummaryLoading()" />
+
+  <app-policy-filters
+    [search]="store.search()"
+    [status]="store.status()"
+    [lineOfBusiness]="store.lineOfBusiness()"
+    [region]="store.region()"
+    [effectiveDateFrom]="store.effectiveDateFrom()"
+    [effectiveDateTo]="store.effectiveDateTo()"
+    [hasActiveFilters]="store.hasActiveFilters()"
+    (searchChange)="store.setSearch($event)"
+    (statusChange)="onStatusChange($event)"
+    (lineOfBusinessChange)="onLineOfBusinessChange($event)"
+    (regionChange)="store.setRegion($event)"
+    (dateRangeChange)="store.setDateRange($event.from, $event.to)"
+    (reset)="store.resetFilters()"
+  />
+
+  @if (flagError()) {
+    <p class="dashboard__flag-error" role="alert">{{ flagError() }}</p>
+  }
+
+  <app-bulk-actions-bar
+    [selectedCount]="store.selectedIds().size"
+    [flagging]="isFlagging()"
+    (flagSelected)="onFlagSelected()"
+    (clearSelection)="store.clearSelection()"
+  />
+
+  <div aria-live="polite" class="visually-hidden">
+    @if (data.isListLoading()) {
+      Loading policies…
+    } @else {
+      {{ data.totalCount() }} policies found
+    }
+  </div>
+
+  @if (data.listErrorMessage(); as error) {
+    <app-error-state [message]="error" (retry)="data.refetchList()" />
+  } @else if (data.isListLoading() && data.policies().length === 0) {
+    <app-loading-skeleton [rows]="8" />
+  } @else if (data.policies().length === 0) {
+    <app-empty-state [showReset]="store.hasActiveFilters()" (reset)="store.resetFilters()" />
+  } @else {
+    <app-policy-table
+      [policies]="data.policies()"
+      [sortField]="store.sortField()"
+      [sortDirection]="store.sortDirection()"
+      [selectedIds]="store.selectedIds()"
+      (sortChange)="store.setSort($event)"
+      (toggleSelect)="store.toggleSelection($event)"
+      (toggleSelectAll)="store.toggleSelectAll(visiblePolicyIds())"
+    />
+
+    <app-pagination-controls
+      [page]="store.page()"
+      [size]="store.size()"
+      [totalCount]="data.totalCount()"
+      [totalPages]="data.totalPages()"
+      (pageChange)="store.setPage($event)"
+    />
+  }
+</div>

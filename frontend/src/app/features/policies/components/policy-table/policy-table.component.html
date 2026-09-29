@@ -1,0 +1,58 @@
+<div class="table-wrapper">
+  <table>
+    <caption class="visually-hidden">
+      Policies — {{ policies().length }} shown, sortable by column, select rows to flag for review
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col" class="col-select">
+          <input
+            type="checkbox"
+            [checked]="allSelected()"
+            [indeterminate]="someSelected()"
+            (change)="toggleSelectAll.emit()"
+            aria-label="Select all policies on this page"
+          />
+        </th>
+        @for (col of columns; track col.field) {
+          <th scope="col" [attr.aria-sort]="ariaSortFor(col.field)" [class.col-numeric]="col.numeric">
+            <button type="button" class="sort-button" (click)="sortChange.emit(col.field)">
+              {{ col.label }}
+              @if (sortField() === col.field) {
+                <span aria-hidden="true">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span>
+              }
+            </button>
+          </th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (policy of policies(); track policy.id) {
+        <tr [class.row-flagged]="policy.flaggedForReview" [class.row-selected]="selectedIds().has(policy.id)">
+          <td class="col-select">
+            <input
+              type="checkbox"
+              [checked]="selectedIds().has(policy.id)"
+              (change)="toggleSelect.emit(policy.id)"
+              [attr.aria-label]="'Select policy ' + policy.policyNumber"
+            />
+          </td>
+          <td>
+            {{ policy.policyNumber }}
+            @if (policy.flaggedForReview) {
+              <span class="flag-indicator" title="Flagged for review" aria-label="Flagged for review">🚩</span>
+            }
+          </td>
+          <td>{{ policy.policyholderName }}</td>
+          <td>{{ policy.lineOfBusiness }}</td>
+          <td><app-status-badge [status]="policy.status" /></td>
+          <td class="col-numeric">{{ formatCurrency(policy.premiumAmount, policy.currency) }}</td>
+          <td>{{ formatDate(policy.effectiveDate) }}</td>
+          <td>{{ formatDate(policy.expiryDate) }}</td>
+          <td>{{ policy.region }}</td>
+          <td>{{ policy.underwriter }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

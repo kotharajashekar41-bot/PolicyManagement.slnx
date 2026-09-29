@@ -1,0 +1,16 @@
+<nav class="pagination" aria-label="Policy list pagination">
+  <p class="pagination__summary">
+    @if (totalCount() > 0) {
+      Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ totalCount() }}
+    } @else {
+      No results
+    }
+  </p>
+  <div class="pagination__controls">
+    <button type="button" [disabled]="!canGoPrevious()" (click)="goTo(page() - 1)" aria-label="Previous page">
+      Previous
+    </button>
+    <span class="pagination__page" aria-current="page">Page {{ page() }} of {{ totalPages() || 1 }}</span>
+    <button type="button" [disabled]="!canGoNext()" (click)="goTo(page() + 1)" aria-label="Next page">Next</button>
+  </div>
+</nav>

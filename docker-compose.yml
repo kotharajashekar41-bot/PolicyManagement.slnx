@@ -31,5 +31,13 @@ services:
     ports:
       - "5255:8080"
 
+  frontend:
+    build:
+      context: frontend
+    depends_on:
+      - api
+    ports:
+      - "4200:80"
+
 volumes:
   sqlserver-data:
