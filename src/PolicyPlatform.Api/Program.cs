@@ -62,10 +62,19 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
+// Integration tests supply their own deterministic dataset via PolicyApiFactory
+// and only need the schema created, not 220 random Bogus rows.
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<PolicyDbContext>();
-    await PolicySeeder.SeedAsync(dbContext);
+    if (app.Environment.IsEnvironment("Testing"))
+    {
+        await dbContext.Database.MigrateAsync();
+    }
+    else
+    {
+        await PolicySeeder.SeedAsync(dbContext);
+    }
 }
 
 app.Run();

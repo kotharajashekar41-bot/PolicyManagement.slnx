@@ -39,8 +39,10 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             Extensions = { ["traceId"] = context.TraceIdentifier }
         };
 
-        context.Response.ContentType = "application/problem+json";
         context.Response.StatusCode = statusCode;
-        await context.Response.WriteAsJsonAsync(problem);
+        // WriteAsJsonAsync resets ContentType to its own default unless told otherwise,
+        // so the RFC7807 media type has to be passed explicitly here rather than set
+        // beforehand on the response.
+        await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
     }
 }
