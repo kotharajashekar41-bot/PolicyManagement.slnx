@@ -1,0 +1,9 @@
+bin/
+obj/
+*.user
+.vs/
+*.db
+appsettings.Development.json.bak
+node_modules/
+dist/
+.angular/

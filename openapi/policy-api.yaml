@@ -1,0 +1,220 @@
+openapi: 3.0.3
+info:
+  title: Chubb APAC Policy Management API
+  description: BFF service exposing policy data for the Policy Management Platform dashboard.
+  version: "1.0"
+servers:
+  - url: /api/v1
+
+tags:
+  - name: Policies
+
+paths:
+  /policies:
+    get:
+      tags: [Policies]
+      summary: List policies with pagination, sorting, filtering and free-text search
+      operationId: listPolicies
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+        - name: sort
+          in: query
+          description: "Format: field,direction e.g. premiumAmount,desc"
+          schema: { type: string, example: "premiumAmount,desc" }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/PolicyStatus" }
+        - name: lineOfBusiness
+          in: query
+          schema: { $ref: "#/components/schemas/LineOfBusiness" }
+        - name: region
+          in: query
+          schema: { type: string }
+        - name: effectiveDateFrom
+          in: query
+          schema: { type: string, format: date }
+        - name: effectiveDateTo
+          in: query
+          schema: { type: string, format: date }
+        - name: search
+          in: query
+          description: Free-text search across policyNumber, policyholderName, underwriter
+          schema: { type: string }
+      responses:
+        "200":
+          description: Paged list of policies
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PagedPolicyResult" }
+        "400":
+          description: Invalid query parameters
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ProblemDetails" }
+
+  /policies/{id}:
+    get:
+      tags: [Policies]
+      summary: Get a single policy by ID
+      operationId: getPolicyById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The policy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Policy" }
+        "404":
+          description: Policy not found
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ProblemDetails" }
+
+  /policies/flag:
+    patch:
+      tags: [Policies]
+      summary: Bulk flag policies for review
+      operationId: flagPolicies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FlagPoliciesRequest" }
+      responses:
+        "200":
+          description: Number of policies flagged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FlagPoliciesResult" }
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/ProblemDetails" }
+
+  /policies/summary:
+    get:
+      tags: [Policies]
+      summary: Aggregated policy statistics
+      operationId: getPolicySummary
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/PolicyStatus" }
+        - name: lineOfBusiness
+          in: query
+          schema: { $ref: "#/components/schemas/LineOfBusiness" }
+        - name: region
+          in: query
+          schema: { type: string }
+        - name: effectiveDateFrom
+          in: query
+          schema: { type: string, format: date }
+        - name: effectiveDateTo
+          in: query
+          schema: { type: string, format: date }
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Aggregated statistics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PolicySummary" }
+
+components:
+  schemas:
+    PolicyStatus:
+      type: string
+      enum: [Active, Expired, Pending, Cancelled]
+
+    LineOfBusiness:
+      type: string
+      enum: [Property, Casualty, A&H, Marine]
+
+    Policy:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        policyNumber: { type: string, example: "POL-000123" }
+        policyholderName: { type: string }
+        lineOfBusiness: { $ref: "#/components/schemas/LineOfBusiness" }
+        status: { $ref: "#/components/schemas/PolicyStatus" }
+        premiumAmount: { type: number, format: decimal }
+        currency: { type: string, example: "SGD" }
+        effectiveDate: { type: string, format: date }
+        expiryDate: { type: string, format: date }
+        region: { type: string }
+        underwriter: { type: string }
+        flaggedForReview: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required:
+        - id
+        - policyNumber
+        - policyholderName
+        - lineOfBusiness
+        - status
+        - premiumAmount
+        - currency
+        - effectiveDate
+        - expiryDate
+        - region
+        - underwriter
+        - flaggedForReview
+
+    PagedPolicyResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Policy" }
+        page: { type: integer }
+        size: { type: integer }
+        totalCount: { type: integer }
+        totalPages: { type: integer }
+
+    FlagPoliciesRequest:
+      type: object
+      properties:
+        policyIds:
+          type: array
+          items: { type: string, format: uuid }
+      required: [policyIds]
+
+    FlagPoliciesResult:
+      type: object
+      properties:
+        flaggedCount: { type: integer }
+
+    PolicySummary:
+      type: object
+      properties:
+        countsByStatus:
+          type: object
+          additionalProperties: { type: integer }
+        premiumByLineOfBusiness:
+          type: object
+          additionalProperties: { type: number }
+        expiringSoonCount:
+          type: integer
+          description: Active policies expiring within the next 30 days
+
+    ProblemDetails:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        traceId: { type: string }
