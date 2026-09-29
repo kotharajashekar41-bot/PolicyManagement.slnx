@@ -7,3 +7,5 @@ appsettings.Development.json.bak
 node_modules/
 dist/
 .angular/
+*.db-shm
+*.db-wal
