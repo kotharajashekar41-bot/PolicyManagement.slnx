@@ -1,0 +1,35 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Your_password123!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      dockerfile: src/PolicyPlatform.Api/Dockerfile
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      Database__Provider: "SqlServer"
+      ConnectionStrings__PolicyDb: "Server=sqlserver,1433;Database=PolicyPlatform;User Id=sa;Password=Your_password123!;TrustServerCertificate=True;"
+      Cors__AllowedOrigins__0: "http://localhost:4200"
+    ports:
+      - "5255:8080"
+
+volumes:
+  sqlserver-data:
