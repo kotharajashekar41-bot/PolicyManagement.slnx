@@ -179,3 +179,28 @@ explicit choice) — `ThemeService` only ever needs to set or clear one attribut
 - No interactive/visual browser verification of the frontend in this environment — the person
   running this should open `http://localhost:4200` and confirm the UI looks right; see
   `AI-JOURNAL.md` for exactly what was and wasn't verified.
+
+
+## Running the tests
+
+**Visual Studio:** Test > Test Explorer > Run All Tests.
+
+**Command line:** `dotnet test` from the solution root.
+
+Current status: 30 backend tests (19 unit, 11 integration), all passing.
+
+
+
+## Performance Test Results
+
+- **Tool:** k6 (`perf/load-test.js`)
+- **Load:** 50 concurrent users (VUs), 30 seconds
+- **Endpoints tested:** `GET /api/v1/policies` and `GET /api/v1/policies/summary`
+
+| Metric | Result | Target |
+|---|---|---|
+| p(95) response time | 110.87 ms | < 300 ms |
+| Error rate | 0.00% | < 1% |
+| Throughput | 325 req/s | n/a |
+
+**How to run:** start the API, then `cd perf` and `k6 run load-test.js`.
